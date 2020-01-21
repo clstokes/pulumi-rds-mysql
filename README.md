@@ -7,6 +7,7 @@ and a MySQL user named `my-user` (by default).
 
 To create the database and MySQL user:
 ```
+pulumi stack init
 pulumi config set aws:region us-west-2
 pulumi up
 ```
