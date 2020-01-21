@@ -1,7 +1,11 @@
 import * as aws from "@pulumi/aws";
 import * as awsx from "@pulumi/awsx";
 import * as mysql from "@pulumi/mysql";
+import * as pulumi from "@pulumi/pulumi";
 import * as random from "@pulumi/random";
+
+const config = new pulumi.Config();
+export const dbUsername = config.get("dbUsername") || "my-user";
 
 const vpc = new awsx.ec2.Vpc("main");
 
@@ -16,7 +20,7 @@ const dbSubnets = new aws.rds.SubnetGroup("db", {
     subnetIds: vpc.publicSubnetIds,
 });
 
-const dbPassword = new random.RandomPassword("db", {
+const adminPassword = new random.RandomPassword("db", {
     length: 20,
 }, {
     // until https://github.com/pulumi/pulumi-terraform-bridge/issues/10
@@ -36,15 +40,17 @@ const db = new aws.rds.Instance("db", {
     publiclyAccessible: true,
 
     username: "admin",
-    password: dbPassword.result,
+    password: adminPassword.result,
 
     skipFinalSnapshot: true,
 });
 
+export const dbAddress = db.address;
+
 const mysqlProvider = new mysql.Provider("db", {
     endpoint: db.endpoint,
     username: db.username,
-    password: dbPassword.result,
+    password: adminPassword.result,
 });
 
 const mysqlUserPassword = new random.RandomPassword("user", {
@@ -56,8 +62,8 @@ const mysqlUserPassword = new random.RandomPassword("user", {
 
 const mysqlUser = new mysql.User("db", {
     host: "%",
-    user: "cameron",
+    user: dbUsername,
     plaintextPassword: mysqlUserPassword.result,
 }, { provider: mysqlProvider });
 
-export const userPassword = mysqlUserPassword.result;
+export const dbPassword = mysqlUserPassword.result;
